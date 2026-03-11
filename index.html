@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>传感器数据展示</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body { background: #f5f7fa; padding-bottom: 40px; }
+        .page-header { background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .data-card { border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        #chart { height: 400px; }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <!-- 顶部用户栏 -->
+        <div class="page-header p-3 mb-4 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-primary">安吉游戏玩具传感器数据</h5>
+            <div>
+                <span id="userInfo" class="me-3"></span>
+                <button id="logoutBtn" class="btn btn-sm btn-outline-danger">退出登录</button>
+            </div>
+        </div>
+
+        <!-- 数据表格 -->
+        <div class="card data-card mb-4">
+            <div class="card-header bg-white fw-bold">实时数据列表</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>设备ID</th>
+                                <th>温度(℃)</th>
+                                <th>湿度(%)</th>
+                                <th>压力值</th>
+                                <th>姿态</th>
+                                <th>上传时间</th>
+                                <th id="operateTh" style="display: none;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <!-- 模拟数据由JS填充 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据图表 -->
+        <div class="card data-card">
+            <div class="card-header bg-white fw-bold">温湿度变化趋势</div>
+            <div class="card-body p-2">
+                <div id="chart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 权限校验 & 用户信息
+        const userRole = localStorage.getItem('userRole');
+        const username = localStorage.getItem('username');
+        if (!userRole) {
+            window.location.href = 'login.html';
+        }
+        document.getElementById('userInfo').textContent = `用户：${username}（${userRole === 'admin' ? '管理员' : '游客'}）`;
+
+        // 2. 管理员显示操作列
+        if (userRole === 'admin') {
+            document.getElementById('operateTh').style.display = 'table-cell';
+        }
+
+        // 3. 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        });
+
+        // 4. 模拟传感器数据
+        const mockData = [
+            { deviceId: 'ANGJI-001', temp: 26.2, humidity: 58.3, pressure: 101.2, gesture: '静止', time: '2026-03-11 10:00:00' },
+            { deviceId: 'ANGJI-001', temp: 26.4, humidity: 57.9, pressure: 101.3, gesture: '静止', time: '2026-03-11 10:05:00' },
+            { deviceId: 'ANGJI-001', temp: 26.5, humidity: 57.5, pressure: 101.1, gesture: '轻微晃动', time: '2026-03-11 10:10:00' },
+            { deviceId: 'ANGJI-002', temp: 25.8, humidity: 60.1, pressure: 101.0, gesture: '静止', time: '2026-03-11 10:00:00' },
+            { deviceId: 'ANGJI-002', temp: 25.9, humidity: 59.8, pressure: 101.2, gesture: '被拿起', time: '2026-03-11 10:05:00' },
+        ];
+
+        // 5. 渲染表格
+        const tableBody = document.getElementById('dataTableBody');
+        mockData.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.deviceId}</td>
+                <td>${item.temp}</td>
+                <td>${item.humidity}</td>
+                <td>${item.pressure}</td>
+                <td>${item.gesture}</td>
+                <td>${item.time}</td>
+                ${userRole === 'admin' ? '<td><button class="btn btn-sm btn-danger del-btn">删除</button></td>' : ''}
+            `;
+            tableBody.appendChild(tr);
+        });
+
+        // 6. 渲染ECharts图表
+        const chartDom = document.getElementById('chart');
+        const myChart = echarts.init(chartDom);
+         const times = mockData.map(d => d.time);
+         const temps = mockData.map(d => d.temp);
+         const hums = mockData.map(d => d.humidity);
+         const option = {
+             tooltip: { trigger: 'axis' },
+             legend: { data: ['温度', '湿度'], top: 10 },
+             grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+             xAxis: { type: 'category', data: times },
+             yAxis: [
+                 { type: 'value', name: '温度(℃)', min: 20, max: 30 },
+                 { type: 'value', name: '湿度(%)', min: 40, max: 70, position: 'right' }
+             ],
+             series: [
+                 { name: '温度', type: 'line', data: temps, itemStyle: { color: '#dc3545' } },
+                 { name: '湿度', type: 'line', yAxisIndex: 1, data: hums, itemStyle: { color: '#0d6efd' } }
+             ]
+         };
+         myChart.setOption(option);
+         // 7. 管理员删除按钮（仅界面效果）
+         document.querySelectorAll('.del-btn').forEach(btn => {
+             btn.addEventListener('click', function() {
+                 if (confirm('确定删除该条数据？')) {
+                     this.closest('tr').remove();
+                 }
+             });
+         });
+     </script>
+ </body>
+ </html>
